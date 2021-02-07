@@ -17,8 +17,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef STM32F1
 #include <libopencm3/stm32/flash.h>
 #include <libopencm3/stm32/crc.h>
+#endif
 #include "params.h"
 #include "param_save.h"
 #include "hwdefs.h"
@@ -49,7 +51,8 @@ typedef struct
 */
 uint32_t parm_save()
 {
-   PARAM_PAGE parmPage;
+#if STM32F1
+    PARAM_PAGE parmPage;
    unsigned int idx;
 
    crc_reset();
@@ -75,6 +78,9 @@ uint32_t parm_save()
    }
    flash_lock();
    return parmPage.crc;
+#else
+   return 0x4242;
+#endif
 }
 
 /**
@@ -85,7 +91,8 @@ uint32_t parm_save()
 */
 int parm_load()
 {
-   PARAM_PAGE *parmPage = (PARAM_PAGE *)PARAM_ADDRESS;
+#if STM32F1
+    PARAM_PAGE *parmPage = (PARAM_PAGE *)PARAM_ADDRESS;
 
    crc_reset();
    uint32_t crc = crc_calculate_block(((uint32_t*)parmPage), (2 * NUM_PARAMS));
@@ -103,6 +110,7 @@ int parm_load()
       }
       return 0;
    }
+#endif
 
    return -1;
 }

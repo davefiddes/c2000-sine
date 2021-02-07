@@ -29,6 +29,7 @@ DIG_IO_LIST
 
 void DigIo::Configure(uint32_t port, uint16_t pin, PinMode::PinMode pinMode)
 {
+#if STM32F1
    uint8_t mode = GPIO_MODE_INPUT;
    uint8_t cnf = GPIO_CNF_INPUT_PULL_UPDOWN;
    uint16_t val = DIG_IO_OFF;
@@ -62,5 +63,7 @@ void DigIo::Configure(uint32_t port, uint16_t pin, PinMode::PinMode pinMode)
    {
       gpio_set(port, pin);
    }
+#endif
+
 }
 

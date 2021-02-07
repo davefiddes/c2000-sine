@@ -20,6 +20,7 @@
 #define PARAM_H_INCLUDED
 
 #include "param_prj.h"
+#include "hwdefs.h"
 #include "my_fp.h"
 
 namespace Param

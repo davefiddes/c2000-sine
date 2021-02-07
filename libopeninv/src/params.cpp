@@ -19,6 +19,7 @@
 
 #include "params.h"
 #include "my_string.h"
+#include "hwdefs.h"
 
 namespace Param
 {

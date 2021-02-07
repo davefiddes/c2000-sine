@@ -18,14 +18,14 @@
  */
 #include "stm32scheduler.h"
 
-/* return CCRc of TIMt */
-#define TIM_CCR(t,c) (*(volatile uint32_t *)(&TIM_CCR1(t) + (c)))
-
-const enum tim_oc_id Stm32Scheduler::ocMap[MAX_TASKS] = { TIM_OC1, TIM_OC2, TIM_OC3, TIM_OC4 };
+#if STM32F1
+const int Stm32Scheduler::ocMap[MAX_TASKS] = { TIM_OC1, TIM_OC2, TIM_OC3, TIM_OC4 };
+#endif
 
 Stm32Scheduler::Stm32Scheduler(uint32_t timer)
 {
    this->timer = timer;
+#if STM32F1
    /* Setup timers upcounting and auto preload enable */
    timer_enable_preload(timer);
    timer_direction_up(timer);
@@ -39,13 +39,14 @@ Stm32Scheduler::Stm32Scheduler(uint32_t timer)
       functions[i] = nofunc;
       periods[i] = 0xFFFF;
    }
-
+#endif
    nextTask = 0;
 }
 
 void Stm32Scheduler::AddTask(void (*function)(void), uint16_t period)
 {
    if (nextTask >= MAX_TASKS) return;
+#if STM32F1
    /* Disable timer */
    timer_disable_counter(timer);
 
@@ -64,12 +65,14 @@ void Stm32Scheduler::AddTask(void (*function)(void), uint16_t period)
 
    /* Enable timer */
    timer_enable_counter(timer);
+#endif
 
    nextTask++;
 }
 
 void Stm32Scheduler::Run()
 {
+#if STM32F1
    for (int i = 0; i < MAX_TASKS; i++)
    {
       if (timer_get_flag(timer, TIM_SR_CC1IF << i))
@@ -81,6 +84,7 @@ void Stm32Scheduler::Run()
          execTicks[i] = timer_get_counter(timer) - start;
       }
    }
+#endif
 }
 
 int Stm32Scheduler::GetCpuLoad()

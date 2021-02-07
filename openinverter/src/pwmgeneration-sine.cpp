@@ -16,8 +16,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#if CONTROL == CTRL_SINE
+#ifdef STM32F1
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/stm32/rcc.h>
+#endif
 #include "pwmgeneration.h"
 #include "hwdefs.h"
 #include "params.h"
@@ -56,6 +60,7 @@ void PwmGeneration::Run()
       Param::SetFlt(Param::angle, DIGIT_TO_DEGREE(angle));
       SineCore::Calc(angle);
 
+#ifdef STM32F1
       /* Shut down PWM on zero voltage request */
       if (0 == amp || 0 == dir)
       {
@@ -70,6 +75,7 @@ void PwmGeneration::Run()
       timer_set_oc_value(PWM_TIMER, TIM_OC1, SineCore::DutyCycles[0] >> shiftForTimer);
       timer_set_oc_value(PWM_TIMER, TIM_OC2, SineCore::DutyCycles[1] >> shiftForTimer);
       timer_set_oc_value(PWM_TIMER, TIM_OC3, SineCore::DutyCycles[2] >> shiftForTimer);
+#endif
    }
    else if (opmode == MOD_BOOST || opmode == MOD_BUCK)
    {
@@ -270,3 +276,5 @@ s32fp PwmGeneration::ProcessCurrents()
 
    return ilMax;
 }
+
+#endif // CONTROL == CTRL_SINE

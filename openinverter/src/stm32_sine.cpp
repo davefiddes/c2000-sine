@@ -19,16 +19,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stdint.h>
+#ifdef STM32F1
 #include <libopencm3/stm32/usart.h>
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/stm32/rtc.h>
 #include <libopencm3/stm32/can.h>
 #include <libopencm3/stm32/iwdg.h>
+#endif
 #include "terminal.h"
 #include "sine_core.h"
 #include "fu.h"
 #include "hwdefs.h"
+#ifdef STM32F1
 #include "hwinit.h"
+#endif
 #include "params.h"
 #include "param_save.h"
 #include "digio.h"
@@ -42,7 +46,7 @@
 
 #define SQRT2OV1 0.707106781187
 
-HWREV hwRev; //Hardware variant of board we are running on
+//HWREV hwRev; //Hardware variant of board we are running on
 
 static Stm32Scheduler* scheduler;
 static Can* can;
@@ -51,12 +55,15 @@ static Can* can;
 static void Ms100Task(void)
 {
    DigIo::led_out.Toggle();
+#ifdef STM32F1
    iwdg_reset();
+#endif
    s32fp cpuLoad = FP_FROMINT(PwmGeneration::GetCpuLoad() + scheduler->GetCpuLoad());
    Param::SetFlt(Param::cpuload, cpuLoad / 10);
    Param::SetInt(Param::turns, Encoder::GetFullTurns());
    Param::SetInt(Param::lasterr, ErrorMessage::GetLastError());
 
+#ifdef STM32F1
    if (hwRev == HW_REV1 || hwRev == HW_BLUEPILL)
    {
       //If break pin is high and both mprot and emcystop are high than it must be over current
@@ -70,6 +77,7 @@ static void Ms100Task(void)
       }
       Param::SetInt(Param::din_desat, 2);
    }
+#endif
 
    VehicleControl::SelectDirection();
    VehicleControl::CruiseControl();
@@ -98,7 +106,9 @@ static void Ms10Task(void)
    int stt = STAT_NONE;
    s32fp udc = VehicleControl::ProcessUdc();
 
+#ifdef STM32F1
    ErrorMessage::SetTime(rtc_get_counter_val());
+#endif
    Encoder::UpdateRotorFrequency(100);
    VehicleControl::CalcAndOutputTemp();
    VehicleControl::GetDigInputs();
@@ -153,12 +163,14 @@ static void Ms10Task(void)
          {
             newMode = chargemode;
 
+#ifdef STM32F1
             //Prius needs to run PWM before closing the contactor
             if (hwRev == HW_PRIUS)
             {
                PwmGeneration::SetChargeCurrent(0);
                PwmGeneration::SetOpmode(newMode);
             }
+#endif
          }
       }
       else if (Param::GetBool(Param::din_start) ||
@@ -180,11 +192,13 @@ static void Ms10Task(void)
       ErrorMessage::UnpostAll();
    }
 
+#if STM32F1
    if (hwRev != HW_TESLA && opmode >= MOD_BOOST && Param::GetBool(Param::din_bms))
    {
       opmode = MOD_OFF;
       Param::SetInt(Param::opmode, opmode);
    }
+#endif
 
    if (MOD_OFF == opmode)
    {
@@ -202,15 +216,19 @@ static void Ms10Task(void)
       //this applies new deadtime and pwmfrq and enables the outputs for the given mode
       PwmGeneration::SetOpmode(opmode);
       DigIo::err_out.Clear();
+#if STM32F1
       if (hwRev == HW_TESLAM3)
          DigIo::vtg_out.Clear();
+#endif
       initWait = -1;
    }
    else if (initWait == 10)
    {
       PwmGeneration::SetCurrentOffset(AnaIn::il1.Get(), AnaIn::il2.Get());
+#if STM32F1
       if (hwRev == HW_TESLAM3)
          DigIo::vtg_out.Set();
+#endif
       initWait--;
    }
    else if (initWait > 0)
@@ -305,6 +323,7 @@ extern void parm_Change(Param::PARAM_NUM paramNum)
          Throttle::idcmax = Param::Get(Param::idcmax);
          Throttle::fmax = Param::Get(Param::fmax);
 
+#if STM32F1
          if (hwRev != HW_BLUEPILL)
          {
             if (Param::GetInt(Param::pwmfunc) == PWM_FUNC_SPEEDFRQ)
@@ -312,6 +331,7 @@ extern void parm_Change(Param::PARAM_NUM paramNum)
             else
                gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO9);
          }
+#endif
          break;
    }
 }
@@ -319,7 +339,9 @@ extern void parm_Change(Param::PARAM_NUM paramNum)
 static void UpgradeParameters()
 {
    Param::SetInt(Param::version, 4); //backward compatibility
+#if STM32F1
    Param::SetInt(Param::hwver, hwRev);
+#endif
 
    if (Param::GetInt(Param::snsm) < 12)
       Param::SetInt(Param::snsm, Param::GetInt(Param::snsm) + 10); //upgrade parameter
@@ -327,6 +349,7 @@ static void UpgradeParameters()
       Param::Set(Param::brkmax, -Param::Get(Param::brkmax));
 }
 
+#if STM32F1
 extern "C" void tim2_isr(void)
 {
    scheduler->Run();
@@ -373,4 +396,6 @@ extern "C" int main(void)
 
    return 0;
 }
+
+#endif
 

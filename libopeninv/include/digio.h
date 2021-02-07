@@ -1,8 +1,11 @@
 #ifndef DIGIO_H_INCLUDED
 #define DIGIO_H_INCLUDED
 
+#ifdef STM32F1
 #include <libopencm3/stm32/gpio.h>
+#endif
 #include "digio_prj.h"
+#include <stdint.h>
 
 namespace PinMode {
    enum PinMode
@@ -36,28 +39,28 @@ public:
    * @param[in] io pin index
    * @return pin value
    */
-   bool Get() { return gpio_get(_port, _pin) > 0; }
+   bool Get() { return 0; /*gpio_get(_port, _pin) > 0;*/ }
 
    /**
    * Set pin high
    *
    * @param[in] io pin index
    */
-   void Set() { gpio_set(_port, _pin); }
+   void Set() { /* gpio_set(_port, _pin);*/ }
 
    /**
    * Set pin low
    *
    * @param[in] io pin index
    */
-   void Clear() { gpio_clear(_port, _pin); }
+   void Clear() { /* gpio_clear(_port, _pin); */}
 
    /**
    * Toggle pin
    *
    * @param[in] io pin index
    */
-   void Toggle() { gpio_toggle(_port, _pin); }
+   void Toggle() { /* gpio_toggle(_port, _pin);*/ }
 
 private:
    uint32_t _port;

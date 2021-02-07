@@ -27,17 +27,6 @@ public:
    static void SwapSinCos(bool swap);
 
 private:
-   static void UpdateTurns(uint16_t angle, uint16_t lastAngle);
-   static void InitTimerSingleChannelMode();
-   static void InitTimerABZMode();
-   static void InitSPIMode();
-   static void InitResolverMode();
-   static uint16_t GetAngleSPI();
-   static uint16_t GetAngleResolver();
-   static uint16_t GetAngleSinCos();
-   static uint16_t DecodeAngle(bool invert);
-   static int GetPulseTimeFiltered();
-   static void GetMinMaxTime(int& min, int& max);
 };
 
 #endif // INC_ENCODER_H_INCLUDED

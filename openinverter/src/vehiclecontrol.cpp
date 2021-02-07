@@ -16,8 +16,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifdef STM32F1
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/stm32/rtc.h>
+#endif
 #include "vehiclecontrol.h"
 #include "temp_meas.h"
 #include "fu.h"
@@ -155,8 +157,10 @@ s32fp VehicleControl::ProcessThrottle()
    GetCruiseCreepCommand(finalSpnt, throtSpnt);
    finalSpnt = Throttle::RampThrottle(finalSpnt);
 
+#ifdef STM32F1
    if (hwRev != HW_TESLA)
       Throttle::BmsLimitCommand(finalSpnt, Param::GetBool(Param::din_bms));
+#endif
 
    Throttle::UdcLimitCommand(finalSpnt, Param::Get(Param::udc));
    Throttle::IdcLimitCommand(finalSpnt, Param::Get(Param::idc));
@@ -216,12 +220,14 @@ void VehicleControl::GetDigInputs()
 
    canIoActive |= canio != 0;
 
+#ifdef STM32F1
    if ((rtc_get_counter_val() - can->GetLastRxTimestamp()) >= CAN_TIMEOUT && canIoActive)
    {
       canio = 0;
       Param::SetInt(Param::canio, 0);
       ErrorMessage::Post(ERR_CANTIMEOUT);
    }
+#endif
 
    Param::SetInt(Param::din_cruise, DigIo::cruise_in.Get() | ((canio & CAN_IO_CRUISE) != 0));
    Param::SetInt(Param::din_start, DigIo::start_in.Get() | ((canio & CAN_IO_START) != 0));
@@ -230,13 +236,17 @@ void VehicleControl::GetDigInputs()
    Param::SetInt(Param::din_forward, DigIo::fwd_in.Get() | ((canio & CAN_IO_FWD) != 0));
    Param::SetInt(Param::din_reverse, DigIo::rev_in.Get() | ((canio & CAN_IO_REV) != 0));
    Param::SetInt(Param::din_emcystop, DigIo::emcystop_in.Get());
+#ifdef STM32F1
    Param::SetInt(Param::din_bms, (canio & CAN_IO_BMS) != 0 || (hwRev == HW_TESLA ? false : DigIo::bms_in.Get()) );
+#endif
 
+#ifdef STM32F1
    if (hwRev != HW_REV1 && hwRev != HW_BLUEPILL)
    {
       Param::SetInt(Param::din_ocur, DigIo::ocur_in.Get());
       Param::SetInt(Param::din_desat, DigIo::desat_in.Get());
    }
+#endif
 }
 
 void VehicleControl::CalcAndOutputTemp()
@@ -271,7 +281,9 @@ void VehicleControl::CalcAndOutputTemp()
 
    tmpout = MIN(0xFFFF, MAX(0, tmpout));
 
+#if STM32F1
    timer_set_oc_value(OVER_CUR_TIMER, TIM_OC4, tmpout);
+#endif
 
    Param::SetFlt(Param::tmphs, tmphs);
    Param::SetFlt(Param::tmpm, tmpm);
@@ -287,14 +299,18 @@ s32fp VehicleControl::ProcessUdc()
    s32fp udcsw = Param::Get(Param::udcsw);
    int udcofs = Param::GetInt(Param::udcofs);
 
+#ifdef STM32F1
    //Calculate "12V" supply voltage from voltage divider on mprot pin
    //1.2/(4.7+1.2)/3.33*4095 = 250 -> make it a bit less for pin losses etc
    //HW_REV1 had 3.9k resistors
    int uauxGain = hwRev == HW_REV1 ? 289 : 249;
    Param::SetFlt(Param::uaux, FP_DIV(AnaIn::uaux.Get(), uauxGain));
+#endif
+
    udcFiltered = IIRFILTER(udcFiltered, AnaIn::udc.Get(), 2);
    udcfp = FP_DIV(FP_FROMINT(udcFiltered - udcofs), udcgain);
 
+#ifdef STM32F1
    if (hwRev != HW_TESLAM3)
    {
       if (udcfp < udcmin || udcfp > udcmax)
@@ -302,6 +318,7 @@ s32fp VehicleControl::ProcessUdc()
       else
          DigIo::vtg_out.Clear();
    }
+#endif
 
    if (udcfp > udclim)
    {
@@ -316,12 +333,14 @@ s32fp VehicleControl::ProcessUdc()
       ErrorMessage::Post(ERR_OVERVOLTAGE);
    }
 
+#ifdef STM32F1
    if (udcfp < (udcsw / 2) && rtc_get_counter_val() > PRECHARGE_TIMEOUT && DigIo::prec_out.Get())
    {
       DigIo::err_out.Set();
       DigIo::prec_out.Clear();
       ErrorMessage::Post(ERR_PRECHARGE);
    }
+#endif
 
    #if CONTROL == CTRL_SINE
    {
@@ -353,6 +372,7 @@ s32fp VehicleControl::ProcessUdc()
 
 void VehicleControl::GetTemps(s32fp& tmphs, s32fp &tmpm)
 {
+#ifdef STM32F1
    if (hwRev == HW_TESLA)
    {
       static s32fp hsTemps[3];
@@ -441,6 +461,7 @@ void VehicleControl::GetTemps(s32fp& tmphs, s32fp &tmpm)
          tmphs = TempMeas::Lookup(tmphsi, snshs);
       }
    }
+#endif
 }
 
 s32fp VehicleControl::GetUserThrottleCommand()
@@ -453,6 +474,7 @@ s32fp VehicleControl::GetUserThrottleCommand()
    if ((potmode & POTMODE_CAN) > 0)
    {
       //500ms timeout
+#ifdef STM32F1
       if ((rtc_get_counter_val() - can->GetLastRxTimestamp()) < CAN_TIMEOUT)
       {
          potval = Param::GetInt(Param::pot);
@@ -464,6 +486,7 @@ s32fp VehicleControl::GetUserThrottleCommand()
          PostErrorIfRunning(ERR_CANTIMEOUT);
          return 0;
       }
+#endif
    }
    else
    {

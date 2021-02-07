@@ -16,8 +16,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifdef STM32F1
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/stm32/rcc.h>
+#endif
 #include "pwmgeneration.h"
 #include "hwdefs.h"
 #include "params.h"
@@ -101,7 +103,9 @@ static void ConfigureChargeController()
    int pwmin = FP_TOINT((Param::Get(Param::chargepwmin) * (1 << pwmdigits)) / 100);
    int pwmax = FP_TOINT((Param::Get(Param::chargepwmax) * (1 << pwmdigits)) / 100);
 
+#ifdef STMF1
    chargeController.SetCallingFrequency(rcc_apb2_frequency / FRQ_DIVIDER);
+#endif
    chargeController.SetMinMaxY(pwmin, pwmax);
    chargeController.SetGains(Param::GetInt(Param::chargekp), Param::GetInt(Param::chargeki));
    chargeController.SetRef(0);
@@ -130,20 +134,26 @@ void PwmGeneration::SetOpmode(int _opmode)
          break;
       case MOD_ACHEAT:
          DisableOutput();
+#ifdef STM32F1
          timer_enable_oc_output(PWM_TIMER, TIM_OC2N);
          timer_enable_oc_output(PWM_TIMER, TIM_OC2);
          timer_enable_break_main_output(PWM_TIMER);
+#endif
          break;
       case MOD_BOOST:
          DisableOutput();
          EnableChargeOutput();
+#ifdef STM32F1
          timer_enable_break_main_output(PWM_TIMER);
+#endif
          ConfigureChargeController();
          break;
       case MOD_BUCK:
          DisableOutput();
          EnableChargeOutput();
+#ifdef STM32F1
          timer_enable_break_main_output(PWM_TIMER);
+#endif
          ConfigureChargeController();
          break;
       case MOD_MANUAL:
@@ -154,6 +164,7 @@ void PwmGeneration::SetOpmode(int _opmode)
    }
 }
 
+#if STM32F1
 extern "C" void tim1_brk_isr(void)
 {
    if (!DigIo::desat_in.Get() && hwRev != HW_REV1 && hwRev != HW_BLUEPILL)
@@ -187,11 +198,14 @@ extern "C" void pwm_timer_isr(void)
    execTicks = ABS(time);
 }
 
+#endif
+
 /**
 * Enable timer PWM output
 */
 void PwmGeneration::EnableOutput()
 {
+#if STM32F1
    timer_enable_oc_output(PWM_TIMER, TIM_OC1);
    timer_enable_oc_output(PWM_TIMER, TIM_OC2);
    timer_enable_oc_output(PWM_TIMER, TIM_OC3);
@@ -202,6 +216,7 @@ void PwmGeneration::EnableOutput()
       timer_enable_oc_output(PWM_TIMER, TIM_OC2N);
       timer_enable_oc_output(PWM_TIMER, TIM_OC3N);
    }
+#endif
 }
 
 /**
@@ -209,17 +224,21 @@ void PwmGeneration::EnableOutput()
 */
 void PwmGeneration::DisableOutput()
 {
-   timer_disable_oc_output(PWM_TIMER, TIM_OC1);
+#if STM32F1
+
+    timer_disable_oc_output(PWM_TIMER, TIM_OC1);
    timer_disable_oc_output(PWM_TIMER, TIM_OC2);
    timer_disable_oc_output(PWM_TIMER, TIM_OC3);
    timer_disable_oc_output(PWM_TIMER, TIM_OC1N);
    timer_disable_oc_output(PWM_TIMER, TIM_OC2N);
    timer_disable_oc_output(PWM_TIMER, TIM_OC3N);
+#endif
 }
 
 void PwmGeneration::EnableChargeOutput()
 {
-   /* Prius GEN2 inverter only has one control signal for the buck/boost converter
+#if STM32F1
+    /* Prius GEN2 inverter only has one control signal for the buck/boost converter
     * When we output a "high" the upper IGBT is switched on. So for bucking
     * output current and duty cycle are proportional
     * For boosting we need to output a "low" to enable the low side IGBT and
@@ -244,6 +263,7 @@ void PwmGeneration::EnableChargeOutput()
       else if (opmode == MOD_BUCK)
          timer_enable_oc_output(PWM_TIMER, TIM_OC2);
    }
+#endif
 }
 
 void PwmGeneration::SetCurrentLimitThreshold(s32fp ocurlim)
@@ -259,8 +279,10 @@ void PwmGeneration::SetCurrentLimitThreshold(s32fp ocurlim)
    limNeg = MAX(0, limNeg);
    limPos = MIN(OCURMAX, limPos);
 
+#if STM32F1
    timer_set_oc_value(OVER_CUR_TIMER, OVER_CUR_NEG, limNeg);
    timer_set_oc_value(OVER_CUR_TIMER, OVER_CUR_POS, limPos);
+#endif
 }
 
 void PwmGeneration::SetChargeCurrent(s32fp cur)
@@ -316,11 +338,14 @@ void PwmGeneration::Charge()
    Param::SetFlt(Param::il1, il1);
    Param::SetFlt(Param::il2, il2);
 
+#if STM32F1
    timer_set_oc_value(PWM_TIMER, TIM_OC2, dc);
+#endif
 }
 
 void PwmGeneration::AcHeat()
 {
+#if STM32F1
    //We need to make sure the negative output is NEVER permanently on.
    if (ampnom < FP_FROMFLT(20))
    {
@@ -334,6 +359,7 @@ void PwmGeneration::AcHeat()
       timer_set_period(PWM_TIMER, dc);
       timer_set_oc_value(PWM_TIMER, TIM_OC2, dc / 2);
    }
+#endif
 }
 
 s32fp PwmGeneration::GetCurrent(AnaIn& input, s32fp offset, s32fp gain)
@@ -352,6 +378,7 @@ s32fp PwmGeneration::GetCurrent(AnaIn& input, s32fp offset, s32fp gain)
 */
 uint16_t PwmGeneration::TimerSetup(uint16_t deadtime, bool activeLow)
 {
+#if STM32F1
    ///There are two update events per PWM period
    ///One when counter reaches top, one when it reaches bottom
    ///We set the repetition counter in a way, that the ISR
@@ -416,10 +443,13 @@ uint16_t PwmGeneration::TimerSetup(uint16_t deadtime, bool activeLow)
    gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_50_MHZ, outputMode, GPIO13 | GPIO14 | GPIO15);
    //Callback frequency is constant because we use the repetition counter
    return rcc_apb2_frequency / FRQ_DIVIDER;
+#endif
+   return 0;
 }
 
 void PwmGeneration::AcHeatTimerSetup()
 {
+#if STM32F1
    timer_disable_counter(PWM_TIMER);
    timer_set_clock_division(PWM_TIMER, TIM_CR1_CKD_CK_INT_MUL_4);
    timer_set_deadtime(PWM_TIMER, 255);
@@ -427,4 +457,5 @@ void PwmGeneration::AcHeatTimerSetup()
    timer_set_oc_value(PWM_TIMER, TIM_OC2, 0);
    timer_generate_event(PWM_TIMER, TIM_EGR_UG);
    timer_enable_counter(PWM_TIMER);
+#endif
 }

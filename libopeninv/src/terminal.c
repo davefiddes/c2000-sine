@@ -18,10 +18,12 @@
  */
 
 #include "my_string.h"
+#ifdef STM32F1
 #include <libopencm3/cm3/common.h>
 #include <libopencm3/stm32/usart.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/dma.h>
+#endif
 #include "terminal.h"
 #include "hwdefs.h"
 #include <stdarg.h>
@@ -36,12 +38,15 @@ static char outBuf[2][TERM_BUFSIZE]; //double buffering
 
 void term_Init()
 {
+#ifdef STM32F1
    ResetDMA();
+#endif
 }
 
 /** Run the terminal */
 void term_Run()
 {
+#if STM32F1
    char args[TERM_BUFSIZE];
    const TERM_CMD *pCurCmd = NULL;
    int lastIdx = 0;
@@ -100,6 +105,7 @@ void term_Run()
          }
       }
    } /* while(1) */
+#endif
 } /* term_Run */
 
 /*
@@ -111,7 +117,8 @@ void term_Run()
 */
 int putchar(int c)
 {
-   static uint32_t curIdx = 0, curBuf = 0, first = 1;
+#if STM32F1
+    static uint32_t curIdx = 0, curBuf = 0, first = 1;
 
 #ifdef UARTDMABLOCKED
    if (hwRev == HW_REV1)
@@ -141,9 +148,11 @@ int putchar(int c)
       outBuf[curBuf][curIdx] = c;
       curIdx++;
    }
+#endif
    return 0;
 }
 
+#ifdef STM32F1
 static void ResetDMA()
 {
    dma_disable_channel(DMA1, TERM_USART_DMARX);
@@ -151,6 +160,7 @@ static void ResetDMA()
    dma_set_number_of_data(DMA1, TERM_USART_DMARX, TERM_BUFSIZE);
    dma_enable_channel(DMA1, TERM_USART_DMARX);
 }
+#endif
 
 static const TERM_CMD *CmdLookup(char *buf)
 {
@@ -172,8 +182,10 @@ static const TERM_CMD *CmdLookup(char *buf)
 
 static void term_send(uint32_t usart, const char *str)
 {
-   for (;*str > 0; str++)
+#if STM32F1
+    for (;*str > 0; str++)
        usart_send_blocking(usart, *str);
+#endif
 }
 
 

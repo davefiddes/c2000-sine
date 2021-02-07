@@ -16,8 +16,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#if CONTROL == CTRL_FOC
+
+#ifdef STM32F1
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/stm32/rcc.h>
+#endif
 #include "pwmgeneration.h"
 #include "hwdefs.h"
 #include "params.h"
@@ -290,3 +295,5 @@ void PwmGeneration::RunOffsetCalibration()
 
    samples++;
 }
+
+#endif // CONTROL == CTRL_FOC

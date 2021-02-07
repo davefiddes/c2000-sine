@@ -68,7 +68,7 @@ private:
       uint16_t mapParam;
       s16fp gain;
       uint8_t offsetBits;
-      int8_t numBits;
+      int16_t numBits;
    };
 
    struct CANIDMAP

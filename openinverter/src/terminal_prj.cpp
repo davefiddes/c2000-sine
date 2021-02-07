@@ -17,8 +17,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef STM32F1
 #include <libopencm3/cm3/common.h>
 #include <libopencm3/stm32/memorymap.h>
+#endif
 #include "hwdefs.h"
 #include "terminal.h"
 #include "params.h"
@@ -61,7 +63,7 @@ extern "C" const TERM_CMD TermCmds[] =
   { "help", Help },
   { "serial", PrintSerial },
   { "errors", PrintErrors },
-  { NULL, NULL }
+  { (const char*)NULL, (void(*)(char*))NULL }
 };
 
 static void PrintList(char *arg)
@@ -153,7 +155,11 @@ static void PrintErrors(char *arg)
 static void PrintSerial(char *arg)
 {
    arg = arg;
+#ifdef STM32F1
    printf("%X%X%X\r\n", DESIG_UNIQUE_ID2, DESIG_UNIQUE_ID1, DESIG_UNIQUE_ID0);
+#else
+   printf("1234567890\r\n");
+#endif
 }
 
 static void Help(char *arg)

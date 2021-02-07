@@ -16,8 +16,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifdef STM32F1
 #include <libopencm3/cm3/scb.h>
 #include <libopencm3/stm32/usart.h>
+#endif
 #include "hwdefs.h"
 #include "terminal.h"
 #include "params.h"
@@ -199,6 +201,7 @@ void TerminalCommands::ParamStream(char *arg)
    } while (',' == *comma && curIndex < maxIndex);
 
    maxIndex = curIndex;
+#ifdef STM32F1
    usart_recv(TERM_USART);
 
    while (!usart_get_flag(TERM_USART, USART_SR_RXNE) && (repetitions > 0 || repetitions == -1))
@@ -214,6 +217,7 @@ void TerminalCommands::ParamStream(char *arg)
       if (repetitions != -1)
          repetitions--;
    }
+#endif
 }
 
 void TerminalCommands::PrintParamsJson(char *arg)
@@ -404,7 +408,9 @@ void TerminalCommands::LoadParameters(char *arg)
 void TerminalCommands::Reset(char *arg)
 {
    arg = arg;
+#ifdef STM32F1
    scb_reset_system();
+#endif
 }
 
 void TerminalCommands::FastUart(char *arg)
@@ -413,7 +419,9 @@ void TerminalCommands::FastUart(char *arg)
    int baud = arg[0] == '0' ? USART_BAUDRATE : 921600;
    printf("OK\r\n");
    printf("Baud rate now %d\r\n", baud);
+#ifdef STM32F1
    usart_set_baudrate(TERM_USART, baud);
+#endif
 }
 
 void TerminalCommands::PrintCanMap(Param::PARAM_NUM param, int canid, int offset, int length, s32fp gain, bool rx)

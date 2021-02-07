@@ -22,6 +22,7 @@
 #include "my_string.h"
 #include "my_math.h"
 #include "printf.h"
+#ifdef STM32F1
 #include <libopencm3/stm32/can.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/rcc.h>
@@ -30,6 +31,7 @@
 #include <libopencm3/stm32/rtc.h>
 #include <libopencm3/cm3/common.h>
 #include <libopencm3/cm3/nvic.h>
+#endif
 #include "stm32_can.h"
 
 #define MAX_INTERFACES        2
@@ -55,13 +57,20 @@
 #error CANMAP will not fit in one flash page
 #endif
 
+// TODO: Figure out how to fix this structure to avoid the packed attribute
+#ifdef STM32F1
+    #define PACKED_ATTRIBUTE __attribute__((packed))
+#else
+    #define PACKED_ATTRIBUTE
+#endif
+
 struct CAN_SDO
 {
    uint8_t cmd;
    uint16_t index;
    uint8_t subIndex;
    uint32_t data;
-} __attribute__((packed));
+} PACKED_ATTRIBUTE;
 
 struct CANSPEED
 {
@@ -73,6 +82,7 @@ struct CANSPEED
 Can* Can::interfaces[MAX_INTERFACES];
 
 static void DummyCallback(uint32_t i, uint32_t* d) { i=i; d=d; }
+#ifdef STM32F1
 static const CANSPEED canSpeed[Can::BaudLast] =
 {
    { CAN_BTR_TS1_9TQ, CAN_BTR_TS2_6TQ, 9 }, //250kbps
@@ -80,6 +90,7 @@ static const CANSPEED canSpeed[Can::BaudLast] =
    { CAN_BTR_TS1_5TQ, CAN_BTR_TS2_3TQ, 5 }, //800kbps
    { CAN_BTR_TS1_6TQ, CAN_BTR_TS2_5TQ, 3 }, //1000kbps
 };
+#endif
 
 /** \brief Add periodic CAN message
  *
@@ -191,6 +202,7 @@ bool Can::FindMap(Param::PARAM_NUM param, int& canId, int& offset, int& length, 
  */
 void Can::Save()
 {
+#ifdef STM32F1
    uint32_t crc;
    crc_reset();
 
@@ -208,6 +220,7 @@ void Can::Save()
 
    ReplaceParamUidByEnum(canSendMap);
    ReplaceParamUidByEnum(canRecvMap);
+#endif
 }
 
 /** \brief Send all defined messages
@@ -283,6 +296,7 @@ Can::Can(uint32_t baseAddr, enum baudrates baudrate)
    Clear();
    LoadFromFlash();
 
+#ifdef STM32F1
    switch (baseAddr)
    {
       case CAN1:
@@ -320,12 +334,14 @@ Can::Can(uint32_t baseAddr, enum baudrates baudrate)
 
 	// Reset CAN
 	can_reset(canDev);
-
+#endif
 	SetBaudrate(baudrate);
    ConfigureFilters();
+#ifdef STM32F1
 	// Enable CAN RX interrupts.
 	can_enable_irq(canDev, CAN_IER_FMPIE0);
 	can_enable_irq(canDev, CAN_IER_FMPIE1);
+#endif
 }
 
 /** \brief Set baud rate to given value
@@ -336,7 +352,8 @@ Can::Can(uint32_t baseAddr, enum baudrates baudrate)
  */
 void Can::SetBaudrate(enum baudrates baudrate)
 {
-	// CAN cell init.
+#ifdef STM32F1
+    // CAN cell init.
 	 // Setting the bitrate to 250KBit. APB1 = 36MHz,
 	 // prescaler = 9 -> 4MHz time quanta frequency.
 	 // 1tq sync + 9tq bit segment1 (TS1) + 6tq bit segment2 (TS2) =
@@ -355,6 +372,7 @@ void Can::SetBaudrate(enum baudrates baudrate)
 		     canSpeed[baudrate].prescaler,				// BRP+1: Baud rate prescaler
 		     false,
 		     false);
+#endif
 }
 
 /** \brief Get RTC time when last message was received
@@ -377,6 +395,7 @@ uint32_t Can::GetLastRxTimestamp()
  */
 void Can::Send(uint32_t canId, uint32_t data[2], uint8_t len)
 {
+#ifdef STM32F1
    can_disable_irq(canDev, CAN_IER_TMEIE);
 
    if (can_transmit(canDev, canId, false, false, len, (uint8_t*)data) < 0 && sendCnt < SENDBUFFER_LEN)
@@ -393,6 +412,7 @@ void Can::Send(uint32_t canId, uint32_t data[2], uint8_t len)
    {
       can_enable_irq(canDev, CAN_IER_TMEIE);
    }
+#endif
 }
 
 void Can::IterateCanMap(void (*callback)(Param::PARAM_NUM, int, int, int, s32fp, bool))
@@ -424,7 +444,8 @@ Can* Can::GetInterface(int index)
 
 void Can::HandleRx(int fifo)
 {
-   uint32_t id;
+#ifdef STM32F1
+    uint32_t id;
 	bool ext, rtr;
 	uint8_t length, fmi;
 	uint32_t data[2];
@@ -469,10 +490,12 @@ void Can::HandleRx(int fifo)
          }
       }
    }
+#endif
 }
 
 void Can::HandleTx()
 {
+#ifdef STM32F1
    while (sendCnt > 0 && can_transmit(canDev, sendBuffer[sendCnt - 1].id, false, false, sendBuffer[sendCnt - 1].len, (uint8_t*)sendBuffer[sendCnt - 1].data) >= 0)
       sendCnt--;
 
@@ -480,6 +503,7 @@ void Can::HandleTx()
    {
       can_disable_irq(canDev, CAN_IER_TMEIE);
    }
+#endif
 }
 
 /****************** Private methods and ISRs ********************/
@@ -547,6 +571,7 @@ void Can::ProcessSDO(uint32_t data[2])
 
 void Can::SetFilterBank(int& idIndex, int& filterId, uint16_t* idList)
 {
+#ifdef STM32F1
    can_filter_id_list_16bit_init(
          filterId,
          idList[0] << 5, //left align
@@ -555,6 +580,7 @@ void Can::SetFilterBank(int& idIndex, int& filterId, uint16_t* idList)
          idList[3] << 5,
          filterId & 1,
          true);
+#endif
    idIndex = 0;
    filterId++;
    idList[0] = idList[1] = idList[2] = idList[3] = 0;
@@ -562,6 +588,7 @@ void Can::SetFilterBank(int& idIndex, int& filterId, uint16_t* idList)
 
 void Can::ConfigureFilters()
 {
+#ifdef STM32F1
    uint16_t idList[IDS_PER_BANK] = { 0x601, 0, 0, 0 };
    int idIndex = 1;
    int filterId = canDev == CAN1 ? 0 : ((CAN_FMR(CAN2) >> 8) & 0x3F);
@@ -592,10 +619,12 @@ void Can::ConfigureFilters()
    {
       SetFilterBank(idIndex, filterId, idList);
    }
+#endif
 }
 
 int Can::LoadFromFlash()
 {
+#ifdef STM32F1
    uint32_t* data = (uint32_t *)CANMAP_ADDRESS;
    uint32_t storedCrc = *(uint32_t*)CRC_ADDRESS;
    uint32_t crc;
@@ -611,6 +640,7 @@ int Can::LoadFromFlash()
       ReplaceParamUidByEnum(canRecvMap);
       return 1;
    }
+#endif
    return 0;
 }
 
@@ -688,7 +718,8 @@ Can::CANIDMAP* Can::FindById(CANIDMAP *canMap, int canId)
 
 uint32_t Can::SaveToFlash(uint32_t baseAddress, uint32_t* data, int len)
 {
-   uint32_t crc = 0;
+#ifdef STM32F1
+    uint32_t crc = 0;
 
    for (int idx = 0; idx < len; idx++)
    {
@@ -698,6 +729,9 @@ uint32_t Can::SaveToFlash(uint32_t baseAddress, uint32_t* data, int len)
    }
 
    return crc;
+#else
+   return 0;
+#endif
 }
 
 int Can::CopyIdMapExcept(CANIDMAP *source, CANIDMAP *dest, Param::PARAM_NUM param)

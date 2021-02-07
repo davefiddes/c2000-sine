@@ -19,9 +19,11 @@
 #ifndef STM32SCHEDULER_H
 #define STM32SCHEDULER_H
 #include <stdint.h>
+#ifdef STM32F1
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/stm32/rcc.h>
+#endif
 
 #define MAX_TASKS 4
 
@@ -52,7 +54,7 @@ class Stm32Scheduler
    protected:
    private:
       static void nofunc(void);
-      static const enum tim_oc_id ocMap[MAX_TASKS];
+      static const int ocMap[MAX_TASKS];
       void (*functions[MAX_TASKS]) (void);
       uint16_t periods[MAX_TASKS];
       uint16_t execTicks[MAX_TASKS];

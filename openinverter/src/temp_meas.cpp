@@ -20,6 +20,7 @@
  */
 #define __TEMP_LU_TABLES
 #include "temp_meas.h"
+#include "hwdefs.h"
 #include <stdint.h>
 
 #define TABLEN(a) sizeof(a) / sizeof(a[0])

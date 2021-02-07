@@ -4,6 +4,8 @@
 
 //Common for any config
 
+#if STM32F1
+
 //Maximum value for over current limit timer
 #define OCURMAX 4096
 #define USART_BAUDRATE 115200
@@ -56,5 +58,24 @@ typedef enum
 } HWREV;
 
 extern HWREV hwRev;
+
+#endif // STM32F1
+
+#ifdef __TMS320C2000__
+#include <stdint.h>
+#include <inc/hw_types.h>
+
+//Address of parameter block in flash
+#define FLASH_PAGE_SIZE 1024
+#define PARAM_BLKSIZE FLASH_PAGE_SIZE
+
+#define MIN_PWM_DIGITS 11   //TODO: Figure out what this should be
+//Maximum value for over current limit timer
+#define OCURMAX 4096        //TODO: Figure out what this should be
+#define USART_BAUDRATE 115200
+#define TERM_BUFSIZE       128
+
+
+#endif
 
 #endif // HWDEFS_H_INCLUDED

@@ -18,9 +18,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifdef STM32F1
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/dma.h>
 #include <libopencm3/stm32/adc.h>
+#endif
 #include "anain.h"
 #include "my_math.h"
 
@@ -40,6 +42,7 @@ ANA_IN_LIST
 */
 void AnaIn::Start()
 {
+#if STM32F1
    adc_power_off(ADC1);
    adc_enable_scan_mode(ADC1);
    adc_set_continuous_conversion_mode(ADC1);
@@ -67,11 +70,14 @@ void AnaIn::Start()
 
    adc_start_conversion_regular(ADC1);
    adc_start_conversion_direct(ADC1);
+#endif
 }
 
-void AnaIn::Configure(uint32_t port, uint8_t pin)
+void AnaIn::Configure(uint32_t port, uint16_t pin)
 {
-   gpio_set_mode(port, GPIO_MODE_INPUT, GPIO_CNF_INPUT_ANALOG, 1 << pin);
+#if STM32F1
+    gpio_set_mode(port, GPIO_MODE_INPUT, GPIO_CNF_INPUT_ANALOG, 1 << pin);
+#endif
    channel_array[GetIndex()] = AdcChFromPort(port, pin);
 }
 
@@ -121,8 +127,9 @@ int AnaIn::median3(int a, int b, int c)
    return MEDIAN3(a,b,c);
 }
 
-uint8_t AnaIn::AdcChFromPort(uint32_t command_port, int command_bit)
+uint16_t AnaIn::AdcChFromPort(uint32_t command_port, int command_bit)
 {
+#if STM32F1
     /*
      PA0 ADC12_IN0
      PA1 ADC12_IN1
@@ -154,5 +161,6 @@ uint8_t AnaIn::AdcChFromPort(uint32_t command_port, int command_bit)
         if (command_bit<6) return command_bit+10;
         break;
     }
+#endif
     return 16;
 }
