@@ -206,6 +206,11 @@ a single CPU should be defined."
 #define STATUS_FAIL                 0x0001
 #define STATUS_PASS                 0x0000
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 //*****************************************************************************
 //
 // Defines, Globals, and Header Includes related to Flash Support
@@ -247,6 +252,10 @@ extern void __error__(char *filename, uint32_t line);
 extern void Example_setResultPass(void);
 extern void Example_setResultFail(void);
 extern void Example_done(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 //
 // End of file
