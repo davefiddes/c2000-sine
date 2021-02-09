@@ -63,7 +63,7 @@ extern "C" const TERM_CMD TermCmds[] =
   { "help", Help },
   { "serial", PrintSerial },
   { "errors", PrintErrors },
-  { (const char*)NULL, (void(*)(char*))NULL }
+  { NULL, NULL }
 };
 
 static void PrintList(char *arg)
