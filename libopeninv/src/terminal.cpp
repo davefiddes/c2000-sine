@@ -115,7 +115,7 @@ void term_Run()
  * buffering, so while one buffer is sent by DMA we can prepare the other
  * buffer to go next.
 */
-int putchar(int c)
+extern "C" int putchar(int c)
 {
 #if STM32F1
     static uint32_t curIdx = 0, curBuf = 0, first = 1;
