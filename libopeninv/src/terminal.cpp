@@ -26,48 +26,48 @@
 #endif
 #include "terminal.h"
 #include "hwdefs.h"
+#include "device.h"
 #include <stdarg.h>
 
 static const TERM_CMD *CmdLookup(char *buf);
-static void term_send(uint32_t usart, const char *str);
-static void ResetDMA();
+static void term_send(const char *str);
 
 extern const TERM_CMD TermCmds[];
 static char inBuf[TERM_BUFSIZE];
-static char outBuf[2][TERM_BUFSIZE]; //double buffering
 
 void term_Init()
 {
-#ifdef STM32F1
-   ResetDMA();
-#endif
 }
 
 /** Run the terminal */
 void term_Run()
 {
-#if STM32F1
    char args[TERM_BUFSIZE];
    const TERM_CMD *pCurCmd = NULL;
-   int lastIdx = 0;
+   int currentIdx = 0;
 
    while (1)
    {
-      int numRcvd = dma_get_number_of_data(DMA1, TERM_USART_DMARX);
-      int currentIdx = TERM_BUFSIZE - numRcvd;
+      while ( SCI_getRxFIFOStatus( TERM_USART ) != SCI_FIFO_RX0 )
+      {
+          uint16_t rxStatus = SCI_getRxStatus(TERM_USART);
+          if((rxStatus & SCI_RXSTATUS_ERROR) != 0)
+          {
+              // Just die here until we figure out how to reset the UART
+              ESTOP0;
+          }
 
-      if (0 == numRcvd)
-         ResetDMA();
-
-      while (lastIdx < currentIdx) //echo
-         usart_send_blocking(TERM_USART, inBuf[lastIdx++]);
+         char newChar = SCI_readCharNonBlocking( TERM_USART );
+         SCI_writeCharBlockingFIFO(TERM_USART, newChar);
+         inBuf[currentIdx++] = newChar;
+      }
 
       if (currentIdx > 0)
       {
          if (inBuf[currentIdx - 1] == '\n' || inBuf[currentIdx - 1] == '\r')
          {
+            term_send("\r\n");
             inBuf[currentIdx] = 0;
-            lastIdx = 0;
             char *space = (char*)my_strchr(inBuf, ' ');
 
             if (0 == *space) //No args after command, look for end of line
@@ -85,82 +85,32 @@ void term_Run()
 
             *space = 0;
             pCurCmd = CmdLookup(inBuf);
-            ResetDMA();
 
             if (NULL != pCurCmd)
             {
-               usart_wait_send_ready(TERM_USART);
-               pCurCmd->CmdFunc(args);
+                pCurCmd->CmdFunc(args);
             }
             else if (currentIdx > 1)
             {
-               term_send(TERM_USART, "Unknown command sequence\r\n");
+               term_send("Unknown command sequence\r\n");
             }
+            currentIdx = 0;
          }
          else if (inBuf[0] == '!' && NULL != pCurCmd)
          {
-            ResetDMA();
-            lastIdx = 0;
+            currentIdx = 0;
             pCurCmd->CmdFunc(args);
          }
       }
    } /* while(1) */
-#endif
 } /* term_Run */
 
-/*
- * Revision 1 hardware can only use synchronous sending as the DMA channel is
- * occupied by the encoder timer (TIM3, channel 3).
- * All other hardware can use DMA for seamless sending of data. We use double
- * buffering, so while one buffer is sent by DMA we can prepare the other
- * buffer to go next.
-*/
+// Needed for printf
 extern "C" int putchar(int c)
 {
-#if STM32F1
-    static uint32_t curIdx = 0, curBuf = 0, first = 1;
-
-#ifdef UARTDMABLOCKED
-   if (hwRev == HW_REV1)
-   {
-      usart_send_blocking(TERM_USART, c);
-   }
-   else
-#endif
-   if (c == '\n' || curIdx == (TERM_BUFSIZE - 1))
-   {
-      outBuf[curBuf][curIdx] = c;
-
-      while (!dma_get_interrupt_flag(DMA1, TERM_USART_DMATX, DMA_TCIF) && !first);
-
-      dma_disable_channel(DMA1, TERM_USART_DMATX);
-      dma_set_number_of_data(DMA1, TERM_USART_DMATX, curIdx + 1);
-      dma_set_memory_address(DMA1, TERM_USART_DMATX, (uint32_t)outBuf[curBuf]);
-      dma_clear_interrupt_flags(DMA1, TERM_USART_DMATX, DMA_TCIF);
-      dma_enable_channel(DMA1, TERM_USART_DMATX);
-
-      curBuf = !curBuf; //switch buffers
-      first = 0; //only needed once so we don't get stuck in the while loop above
-      curIdx = 0;
-   }
-   else
-   {
-      outBuf[curBuf][curIdx] = c;
-      curIdx++;
-   }
-#endif
-   return 0;
+    SCI_writeCharBlockingFIFO(TERM_USART, c);
+    return c;
 }
-
-#ifdef STM32F1
-static void ResetDMA()
-{
-   dma_disable_channel(DMA1, TERM_USART_DMARX);
-   dma_set_memory_address(DMA1, TERM_USART_DMARX, (uint32_t)inBuf);
-   dma_set_number_of_data(DMA1, TERM_USART_DMARX, TERM_BUFSIZE);
-   dma_enable_channel(DMA1, TERM_USART_DMARX);
-}
-#endif
 
 static const TERM_CMD *CmdLookup(char *buf)
 {
@@ -180,12 +130,10 @@ static const TERM_CMD *CmdLookup(char *buf)
    return pCmd;
 }
 
-static void term_send(uint32_t usart, const char *str)
+static void term_send(const char *str)
 {
-#if STM32F1
     for (;*str > 0; str++)
-       usart_send_blocking(usart, *str);
-#endif
+        SCI_writeCharBlockingFIFO(TERM_USART, *str);
 }
 
 

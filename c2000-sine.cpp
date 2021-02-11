@@ -55,6 +55,8 @@
 //
 // Included Files
 //
+#include "terminal.h"
+#include "hwinit.h"
 #include "driverlib.h"
 #include "device.h"
 
@@ -80,6 +82,8 @@ void main(void)
     GPIO_setPadConfig(DEVICE_GPIO_PIN_LED1, GPIO_PIN_TYPE_STD);
     GPIO_setDirectionMode(DEVICE_GPIO_PIN_LED1, GPIO_DIR_MODE_OUT);
 
+    uart_setup();
+
     //
     // Initialize PIE and clear PIE registers. Disables CPU interrupts.
     //
@@ -97,31 +101,8 @@ void main(void)
     EINT;
     ERTM;
 
-    //
-    // Loop Forever
-    //
-    for(;;)
-    {
-        //
-        // Turn on LED
-        //
-        GPIO_writePin(DEVICE_GPIO_PIN_LED1, 0);
-
-        //
-        // Delay for a bit.
-        //
-        DEVICE_DELAY_US(500000);
-
-        //
-        // Turn off LED
-        //
-        GPIO_writePin(DEVICE_GPIO_PIN_LED1, 1);
-
-        //
-        // Delay for a bit.
-        //
-        DEVICE_DELAY_US(500000);
-    }
+    // Process terminal commands forever
+    term_Run();
 }
 
 //

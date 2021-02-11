@@ -72,8 +72,9 @@ extern HWREV hwRev;
 #define MIN_PWM_DIGITS 11   //TODO: Figure out what this should be
 //Maximum value for over current limit timer
 #define OCURMAX 4096        //TODO: Figure out what this should be
-#define USART_BAUDRATE 115200
-#define TERM_BUFSIZE       128
+#define USART_BAUDRATE  115200
+#define TERM_BUFSIZE    128
+#define TERM_USART      SCIA_BASE
 
 
 #endif
