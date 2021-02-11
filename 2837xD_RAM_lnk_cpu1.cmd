@@ -69,7 +69,7 @@ SECTIONS
    .bss             : > RAMLS5,    PAGE = 1
    .bss:output      : > RAMLS3,    PAGE = 0
    .init_array      : > RAMM0,     PAGE = 0
-   .const           : > RAMLS5,    PAGE = 1
+   .const           : >> RAMGS2 | RAMGS3 |RAMGS4 | RAMGS5,    PAGE = 1
    .data            : > RAMLS5,    PAGE = 1
    .sysmem          : > RAMLS5,    PAGE = 1
 #else
